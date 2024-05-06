@@ -3,27 +3,37 @@
     <template #header>
       <div class="card-header">
         <span style="font-weight: 600; font-size: 18px">查看房户信息</span>
-        <el-select style="float:right" @change="changeBuild" v-model="data.pickBuild" placeholder="请选择楼栋">
-          <el-option v-for="item in data.buildList" :key="item.id" :label="item.name" :value="item" />
+        <el-select
+          style="float: right"
+          @change="changeBuild"
+          v-model="data.pickBuild"
+          placeholder="请选择楼栋"
+        >
+          <el-option
+            v-for="item in data.buildList"
+            :key="item.id"
+            :label="item.name"
+            :value="item"
+          />
         </el-select>
       </div>
     </template>
   </el-card>
 </template>
 <script setup>
-import { onMounted, getCurrentInstance, reactive, onUnmounted } from 'vue'
-import * as Cesium from 'cesium';
-import Bubble from '../tool/bubble'
-import * as turf from '@turf/turf'
-import { getHouse, getOneHouseInfo } from '../api/houseApi'
-import { getBuild } from '../api/buildApi'
+import { onMounted, getCurrentInstance, reactive, onUnmounted } from "vue";
+import * as Cesium from "cesium";
+import Bubble from "../tool/bubble";
+import * as turf from "@turf/turf";
+import { getHouse, getOneHouseInfo } from "../api/houseApi";
+import { getBuild } from "../api/buildApi";
 const { appContext } = getCurrentInstance();
-const global = appContext.config.globalProperties
+const global = appContext.config.globalProperties;
 const data = reactive({
   buildList: [],
-  pickBuild: ''
-})
-let houseList = []
+  pickBuild: "",
+});
+let houseList = [];
 
 const colors = [
   "#99CCCC",
@@ -36,28 +46,33 @@ const colors = [
   "#CCFF00",
   "#0000FF",
 ];
-let lastPick, bubbles
+let lastPick, bubbles;
 const changeBuild = (item) => {
-  bubbles && bubbles.windowClose()
-  bubbles = null
-  lastPick = null
+  bubbles && bubbles.windowClose();
+  bubbles = null;
+  lastPick = null;
   if (houseList.length > 0) {
-    houseList.forEach(item => { global.$viewer.scene.primitives.remove(item) })
+    houseList.forEach((item) => {
+      global.$viewer.scene.primitives.remove(item);
+    });
   }
-  houseList = []
-  data.pickBuild = item.name
-  const center = turf.center(item.polygon)
+  houseList = [];
+  data.pickBuild = item.name;
+  const center = turf.center(item.polygon);
   global.$viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(...center.geometry.coordinates, 200)
-  })
-  getAllHouse(item.id)
-}
+    destination: Cesium.Cartesian3.fromDegrees(
+      ...center.geometry.coordinates,
+      200
+    ),
+  });
+  getAllHouse(item.id);
+};
 
 const getAllHouse = (id) => {
-  getHouse({ id, noPage: 1 }).then(res => {
+  getHouse({ id, noPage: 1 }).then((res) => {
     if (res.code == 200) {
-      res.data.forEach(item => {
-        let arr = item.polygon.coordinates[0].flat()
+      res.data.forEach((item) => {
+        let arr = item.polygon.coordinates[0].flat();
         let primitive = new Cesium.ClassificationPrimitive({
           geometryInstances: new Cesium.GeometryInstance({
             id: item.id,
@@ -78,59 +93,67 @@ const getAllHouse = (id) => {
           }),
           classificationType: Cesium.ClassificationType.CESIUM_3D_TILE,
         });
-        houseList.push(primitive)
+        houseList.push(primitive);
         global.$viewer.scene.primitives.add(primitive);
-      })
+      });
     }
-  })
-}
+  });
+};
 
 const initHandle = () => {
   let handler = new Cesium.ScreenSpaceEventHandler(global.$viewer.scene.canvas);
   handler.setInputAction((event) => {
     let position = global.$viewer.scene.pickPosition(event.position);
-    let pick = global.$viewer.scene.pick(event.position)
+    let pick = global.$viewer.scene.pick(event.position);
     if (position && pick && pick.id) {
       if (lastPick && lastPick.id != pick.id) {
-        const lastAttributes = lastPick.primitive.getGeometryInstanceAttributes(lastPick.id)
+        const lastAttributes = lastPick.primitive.getGeometryInstanceAttributes(
+          lastPick.id
+        );
         lastAttributes.color = Cesium.ColorGeometryInstanceAttribute.toValue(
-          Cesium.Color.fromCssColorString(colors[lastPick.id % 9]).withAlpha(0.3)
-        )
+          Cesium.Color.fromCssColorString(colors[lastPick.id % 9]).withAlpha(
+            0.3
+          )
+        );
       }
-      const attributes = pick.primitive.getGeometryInstanceAttributes(pick.id)
-      attributes.color = Cesium.ColorGeometryInstanceAttribute.toValue(Cesium.Color.YELLOW.withAlpha(0.88));
-      lastPick = pick
-      getOneHouseInfo({ id: pick.id }).then(res => {
+      const attributes = pick.primitive.getGeometryInstanceAttributes(pick.id);
+      attributes.color = Cesium.ColorGeometryInstanceAttribute.toValue(
+        Cesium.Color.YELLOW.withAlpha(0.88)
+      );
+      lastPick = pick;
+      getOneHouseInfo({ id: pick.id }).then((res) => {
         if (res.code == 200) {
-          let houseInfo = res.data
-          bubbles && bubbles.windowClose()
+          let houseInfo = res.data;
+          bubbles && bubbles.windowClose();
           bubbles = new Bubble({
             position,
             viewer: global.$viewer,
-            houseInfo
-          })
+            houseInfo,
+          });
         }
-      })
+      });
     }
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-}
+};
 
 onUnmounted(() => {
-  bubbles && bubbles.windowClose()
+  bubbles && bubbles.windowClose();
   if (houseList.length > 0) {
-    houseList.forEach(item => { global.$viewer.scene.primitives.remove(item) })
+    houseList.forEach((item) => {
+      global.$viewer.scene.primitives.remove(item);
+    });
   }
-  houseList = []
-})
+  houseList = [];
+});
 
 onMounted(() => {
-  getBuild().then(res => {
+  getBuild().then((res) => {
     if (res.code == 200) {
-      data.buildList = res.data
+      data.buildList = res.data;
     }
-  })
-  initHandle()
-})
+  });
+  initHandle();
+});
 </script>
 <style lang="scss">
 .house {

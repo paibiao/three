@@ -4,7 +4,7 @@
 </template>
 <script setup>
 import * as Cesium from "cesium";
-import { onMounted } from "vue";
+import { onMounted, getCurrentInstance } from "vue";
 import { load3dtiles, update3dtiles } from "./tool/load3D";
 let viewer;
 Cesium.Ion.defaultAccessToken =
@@ -20,6 +20,9 @@ onMounted(() => {
     timeline: false, //是否显示时间轴工具
     fullscreenButton: false, //是否显示全屏按钮工具
   });
+  const { appContext } = getCurrentInstance();
+  const global = appContext.config.globalProperties;
+  global.$viewer = viewer;
   load3dtiles(viewer, "src/assets/b3dm/tileset.json", (tileset) => {
     viewer.zoomTo(tileset);
     update3dtiles(tileset);
